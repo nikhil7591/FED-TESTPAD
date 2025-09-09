@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hangman (Local JSON)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --accent:#22c55e; --danger:#ef4444; --text:#e5e7eb; }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;background:var(--bg);color:var(--text);display:grid;place-items:center;min-height:100vh;padding:24px}
+    .app{max-width:800px;width:100%;background:var(--card);border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    h1{margin:0 0 12px;font-size:clamp(22px,3vw,30px)}
+    .row{margin:12px 0}
+    .q{font-size:18px;color:var(--muted)}
+    .word{letter-spacing:.25em;font-size:32px;margin:12px 0 6px;word-break:break-word}
+    .letters{display:grid;grid-template-columns:repeat(13,1fr);gap:8px;margin-top:12px}
+    button.letter{background:#1f2937;border:1px solid #374151;color:#e5e7eb;border-radius:10px;padding:8px 0;font-weight:600;cursor:pointer}
+    button.letter:disabled{opacity:.45;cursor:not-allowed}
+    .bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;margin-top:10px}
+    .life{padding:6px 12px;background:#18212f;border-radius:999px;border:1px solid #334155}
+    .ok{color:var(--accent);font-weight:700}
+    .bad{color:var(--danger);font-weight:700}
+    .controls{display:flex;gap:10px}
+    .btn{background:#2563eb;border:none;color:white;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+    .btn.secondary{background:#374151}
+    .out{min-height:28px;color:var(--muted)}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Hangman — Local JSON se Fetch</h1>
+
+    <div class="row q" id="question">Loading question…</div>
+
+    <div class="row word" id="maskedWord">_ _ _ _ _ _</div>
+
+    <div class="bar">
+      <div class="life">Lives: <span id="lives">6</span></div>
+      <div class="controls">
+        <button id="newBtn" class="btn">New Question</button>
+        <button id="resetBtn" class="btn secondary">Reset</button>
+      </div>
+    </div>
+
+    <div class="row letters" id="letters"></div>
+
+    <div class="row out" id="status"></div>
+  </div>
+
+  <script>
+    const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    const livesEl = document.getElementById("lives");
+    const questionEl = document.getElementById("question");
+    const maskedEl = document.getElementById("maskedWord");
+    const lettersWrap = document.getElementById("letters");
+    const statusEl = document.getElementById("status");
+    const newBtn = document.getElementById("newBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let questions = [];
+    let current = null;      // { Question, Answer }
+    let display = [];        // array of chars ('_' or actual)
+    let lives = 6;
+    let guessed = new Set();
+    let gameOver = false;
+
+    function normalize(s){ return s.normalize('NFKD'); }
+    function isAlpha(ch){ return /^[A-Z]$/i.test(ch); }
+
+    function renderLetters() {
+      lettersWrap.innerHTML = "";
+      LETTERS.forEach(ch => {
+        const btn = document.createElement("button");
+        btn.className = "letter";
+        btn.textContent = ch;
+        btn.disabled = guessed.has(ch) || gameOver;
+        btn.addEventListener("click", () => onGuess(ch));
+        lettersWrap.appendChild(btn);
+      });
+    }
+
+    function pickRandomQuestion() {
+      if (!questions.length) return;
+      current = questions[Math.floor(Math.random()*questions.length)];
+      setupRound();
+    }
+
+    function setupRound() {
+      lives = 6; gameOver = false; guessed.clear(); statusEl.textContent = "";
+      const ans = normalize(current.Answer);
+      display = Array.from(ans).map(ch => isAlpha(ch) ? '_' : ch);
+      questionEl.textContent = current.Question;
+      maskedEl.textContent = display.join(' ');
+      livesEl.textContent = lives;
+      renderLetters();
+    }
+
+    function onGuess(letter) {
+      if (gameOver) return;
+      guessed.add(letter);
+      const ans = normalize(current.Answer);
+      const upperAns = ans.toUpperCase();
+
+      let hit = false;
+      for (let i = 0; i < ans.length; i++) {
+        if (isAlpha(ans[i]) && upperAns[i] === letter) {
+          display[i] = ans[i]; // preserve original case if any
+          hit = true;
+        }
+      }
+
+      if (!hit) {
+        lives--;
+        livesEl.textContent = lives;
+        statusEl.innerHTML = `<span class="bad">Galat guess!</span> "${letter}" nahi mila.`;
+      } else {
+        statusEl.innerHTML = `<span class="ok">Sahi!</span> "${letter}" mila.`;
+      }
+
+      maskedEl.textContent = display.join(' ');
+      renderLetters();
+      checkEnd();
+    }
+
+    function checkEnd() {
+      if (!display.includes('_')) {
+        gameOver = true;
+        statusEl.innerHTML = `🎉 Jeet gaye! Answer tha: <b>${current.Answer}</b>`;
+        renderLetters();
+      } else if (lives <= 0) {
+        gameOver = true;
+        statusEl.innerHTML = `💀 Game over! Answer tha: <b>${current.Answer}</b>`;
+        maskedEl.textContent = current.Answer.split('').join(' ');
+        renderLetters();
+      }
+    }
+
+    newBtn.addEventListener("click", pickRandomQuestion);
+    resetBtn.addEventListener("click", () => setupRound());
+
+    async function loadQuestions() {
+      try {
+        const res = await fetch("./questions.json");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        questions = await res.json();
+        pickRandomQuestion();
+      } catch (err) {
+        questionEl.textContent = "Questions load error";
+        console.error(err);
+      }
+    }
+
+    loadQuestions();
+  </script>
+</body>
+</html>

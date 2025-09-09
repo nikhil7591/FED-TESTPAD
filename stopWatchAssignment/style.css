@@ -1,0 +1,54 @@
+/* User Story 2 */
+body {
+  background-color: black;
+  color: white;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+/* User Story 1 */
+.container {
+  text-align: center;
+}
+
+/* User Story 3 */
+#display {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 20px;
+}
+
+/* User Story 4 */
+.buttons {
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 10px 20px;
+  margin: 0 10px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+#startStop {
+  background-color: green;
+  color: white;
+}
+
+#lapReset {
+  background-color: gray;
+  color: white;
+}
+
+#laps {
+  list-style: none;
+  padding: 0;
+}
+
+#laps li {
+  margin: 5px 0;
+}
